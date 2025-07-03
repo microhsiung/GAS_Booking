@@ -1,0 +1,90 @@
+function onFormSubmit(e) {
+  Logger.log("--- 函式開始執行 ---");
+  Logger.log("原始事件物件 (e): " + JSON.stringify(e));
+  Logger.log("namedValues: " + JSON.stringify(e.namedValues));
+
+  if (!e || !e.namedValues) {
+    Logger.log("錯誤：e 或 namedValues 為 undefined。");
+    return;
+  }
+
+  var formResponse = e.namedValues;
+  var name = formResponse["姓名"] ? formResponse["姓名"][0] : "未知姓名"; 
+  var email = formResponse["email"] ? formResponse["email"][0] : ""; 
+  var dateString = formResponse["預約日期"] ? formResponse["預約日期"][0] : "未知日期";
+  var timeString = formResponse["預約時間"] ? formResponse["預約時間"][0] : "未知時間";
+  var serviceString = formResponse["預約項目"] ? formResponse["預約項目"][0] : "未知項目";
+  var description = formResponse["備註"] ? formResponse["備註"][0] : "";
+  var eventTitle = `${name} [${serviceString}]`;
+
+  Logger.log("取得的姓名: " + name);
+  Logger.log("取得的日期字串: " + dateString);
+  Logger.log("取得的時間字串: " + timeString);
+  Logger.log("組裝後的事件標題: " + eventTitle);
+
+  var dateTimeStart;
+  var dateTimeEnd;
+
+  try {
+    // 解析日期部分
+    var dateParts = dateString.split('/'); // 例如 ["2025", "7", "1"]
+    var year = parseInt(dateParts[0]);
+    var month = parseInt(dateParts[1]) - 1; // 月份從 0 開始 (0=1月, 11=12月)
+    var day = parseInt(dateParts[2]);
+
+    // 解析時間部分，並處理 "下午"
+    var hour, minute;
+    if (timeString.includes("下午")) {
+      var timeParts = timeString.replace("下午 ", "").split(':');
+      hour = parseInt(timeParts[0]) + 12; // 下午時間加 12
+      minute = parseInt(timeParts[1]);
+    } else if (timeString.includes("上午")) {
+      var timeParts = timeString.replace("上午 ", "").split(':');
+      hour = parseInt(timeParts[0]);
+      minute = parseInt(timeParts[1]);
+    } else {
+      // 假設是 24 小時制或默認格式
+      var timeParts = timeString.split(':');
+      hour = parseInt(timeParts[0]);
+      minute = parseInt(timeParts[1]);
+    }
+
+    // 建立 Date 物件
+    dateTimeStart = new Date(year, month, day, hour, minute, 0); // 年, 月, 日, 時, 分, 秒
+    dateTimeEnd = new Date(dateTimeStart.getTime() + (60 * 60 * 1000)); // 預設持續 1 小時
+
+    // 驗證日期是否有效
+    if (isNaN(dateTimeStart.getTime())) {
+      throw new Error("解析日期時間失敗，可能是格式問題。");
+    }
+
+    Logger.log("解析後的開始時間 (dateTimeStart): " + dateTimeStart.toString());
+    Logger.log("解析後的結束時間 (dateTimeEnd): " + dateTimeEnd.toString());
+
+  } catch (error) {
+    Logger.log("日期時間解析錯誤: " + error.message);
+    Logger.log("請檢查表單的日期和時間格式與程式碼的解析邏輯是否匹配。");
+    return; // 解析失敗則停止執行
+  }
+
+  // --- 日曆事件創建部分 ---
+  var calendarId = '369a4e87b910df04d978751a0cff2887ba9e9b528c4135b723df97c8c852b1c5@group.calendar.google.com'; // 將這裡替換成你的 Google 日曆 ID
+  var calendar = CalendarApp.getCalendarById(calendarId);
+
+  if (calendar) {
+    var event = calendar.createEvent(eventTitle, dateTimeStart, dateTimeEnd, {
+      description: description,
+      guests: email // 將電子郵件地址加入為參與者
+    });
+    Logger.log('事件已成功建立: ' + event.getTitle());
+    Logger.log('實際日曆事件開始時間: ' + event.getStartTime()); // 使用 getStartTime
+    Logger.log('實際日曆事件結束時間: ' + event.getEndTime());   // 使用 getEndTime
+  } else {
+    Logger.log('找不到 ID 為 ' + calendarId + ' 的日曆。');
+  }
+  Logger.log("--- 函式執行結束 ---");
+}
+
+
+
+https://forms.gle/cWEZveRo9ANaqKyR8
